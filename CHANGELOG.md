@@ -93,7 +93,10 @@ tech-alegria-scan-app/
 
 ### Current Project State
 - **Status**: Foundational setup complete with API routes under development
-- **API Routes**: Two routes implemented: `/api/add-activity` for participant activity tracking and `/api/upload-csv` for participant data import
+- **API Routes**: Three routes implemented:
+  - `/api/add-activity` for participant activity tracking (with duplicate prevention)
+  - `/api/upload-csv` for participant data import from CSV files
+  - `/api/participant-info` for fetching participant details with recent activities
 - **Database**: Supabase client integrated with API routes for participant data management
 - **UI**: Standard Next.js starter template with Tailwind CSS styling
 - **Development Environment**: Fully configured with hot reload and linting
