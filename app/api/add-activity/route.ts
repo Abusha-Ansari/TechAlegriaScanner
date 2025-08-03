@@ -48,6 +48,37 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check if this activity already exists for this participant
+    const { data: existingActivity, error: existingActivityError } = await supabase
+      .from('participant_activity')
+      .select('id')
+      .eq('participant_id', participant_id)
+      .eq('activity_name', activity_name)
+      .maybeSingle();
+
+    // If activity already exists, return a 409 Conflict response
+    if (existingActivity) {
+      return NextResponse.json(
+        { 
+          error: 'Activity already exists',
+          details: `${activity_name} has already been recorded for participant ${participant_id}`
+        },
+        { status: 409 }
+      );
+    }
+    
+    // If there was an error checking for existing activity (but not "not found" error)
+    if (existingActivityError && !existingActivityError.message.includes('No rows found')) {
+      console.error('Error checking for existing activity:', existingActivityError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to check for existing activity',
+          details: existingActivityError.message
+        },
+        { status: 500 }
+      );
+    }
+
     // Insert a new row into the participant_activity table
     const { error: insertError } = await supabase
       .from('participant_activity')
