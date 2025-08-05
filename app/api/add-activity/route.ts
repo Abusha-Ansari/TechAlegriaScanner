@@ -30,10 +30,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Look up the participant from participants_data
+    // Look up the participant from participants_data - get all fields
     const { data: participant, error: participantError } = await supabase
       .from('participants_data')
-      .select('participant_id, candidate_name, candidate_email')
+      .select('*')
       .eq('participant_id', participant_id)
       .single();
 
@@ -103,9 +103,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Return success response
+    // Fetch the most recent 3 activities for this participant
+    const { data: recentActivity, error: activityError } = await supabase
+      .from('participant_activity')
+      .select('activity_name, description, created_at')
+      .eq('participant_id', participant_id)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    // Log but don't fail if there's an error fetching recent activities
+    if (activityError) {
+      console.error('Error fetching recent activities:', activityError);
+    }
+    
+    // Return success response with full participant details
     return NextResponse.json(
-      { message: 'Activity added successfully' },
+      {
+        participant,
+        recent_activity: recentActivity || []
+      },
       { status: 200 }
     );
 
