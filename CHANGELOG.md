@@ -14,7 +14,8 @@ tech-alegria-scan-app/
 │   │   ├── add-activity/         # POST route for logging participant activities
 │   │   ├── upload-csv/           # POST route for importing participant data from CSV
 │   │   ├── participant-info/     # GET route for fetching individual participant details
-│   │   └── participants/         # GET route for fetching all participants data
+│   │   ├── participants/         # GET route for fetching all participants data
+│   │   └── participants-activity/ # GET route for fetching all participant activities
 │   ├── favicon.ico               # Application favicon
 │   ├── globals.css               # Global CSS styles with Tailwind imports and theme variables
 │   ├── layout.tsx                # Root layout component with Geist fonts and metadata
@@ -97,11 +98,12 @@ tech-alegria-scan-app/
 
 ### Current Project State
 - **Status**: Foundational setup complete with API routes under development
-- **API Routes**: Four routes implemented:
+- **API Routes**: Five routes implemented:
   - `/api/add-activity` for participant activity tracking (with duplicate prevention, returns full participant info)
   - `/api/upload-csv` for participant data import from CSV files
   - `/api/participant-info` for fetching participant details with recent activities
   - `/api/participants` for fetching all participants data from the database
+  - `/api/participants-activity` for fetching all participant activities from the database
 - **Database**: Supabase client integrated with API routes for participant data management
 - **UI**: Standard Next.js starter template with Tailwind CSS styling
 - **Development Environment**: Fully configured with hot reload and linting
