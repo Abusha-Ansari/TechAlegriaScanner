@@ -10,7 +10,11 @@ The **Tech Alegria Scan App** is a Next.js 15.4.5 application built with React 1
 ```
 tech-alegria-scan-app/
 ├── app/                          # Next.js App Router directory
-│   ├── api/                      # API routes directory (empty, ready for implementation)
+│   ├── api/                      # API routes directory
+│   │   ├── add-activity/         # POST route for logging participant activities
+│   │   ├── upload-csv/           # POST route for importing participant data from CSV
+│   │   ├── participant-info/     # GET route for fetching individual participant details
+│   │   └── participants/         # GET route for fetching all participants data
 │   ├── favicon.ico               # Application favicon
 │   ├── globals.css               # Global CSS styles with Tailwind imports and theme variables
 │   ├── layout.tsx                # Root layout component with Geist fonts and metadata
@@ -93,10 +97,11 @@ tech-alegria-scan-app/
 
 ### Current Project State
 - **Status**: Foundational setup complete with API routes under development
-- **API Routes**: Three routes implemented:
-  - `/api/add-activity` for participant activity tracking (with duplicate prevention)
+- **API Routes**: Four routes implemented:
+  - `/api/add-activity` for participant activity tracking (with duplicate prevention, returns full participant info)
   - `/api/upload-csv` for participant data import from CSV files
   - `/api/participant-info` for fetching participant details with recent activities
+  - `/api/participants` for fetching all participants data from the database
 - **Database**: Supabase client integrated with API routes for participant data management
 - **UI**: Standard Next.js starter template with Tailwind CSS styling
 - **Development Environment**: Fully configured with hot reload and linting
