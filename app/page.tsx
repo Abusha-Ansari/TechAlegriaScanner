@@ -267,6 +267,14 @@ export default function AdminDashboard() {
     });
   };
 
+  if(loading){
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-100 p-4 md:p-8">
       <header className="max-w-7xl mx-auto mb-6">
