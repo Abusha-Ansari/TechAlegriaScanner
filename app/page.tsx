@@ -1,15 +1,34 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// 1. DYNAMIC IMPORTS & SETUP
+// Grouped for cleanliness. `dynamic` is used to code-split recharts for faster page loads.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+const ResponsiveContainer = dynamic(
+  () => import("recharts").then((mod) => mod.ResponsiveContainer),
+  { ssr: false }
+);
 const LineChart = dynamic(
   () => import("recharts").then((mod) => mod.LineChart),
   { ssr: false }
 );
+// const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), { ssr: false });
+const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), {
+  ssr: false,
+});
 const Line = dynamic(() => import("recharts").then((mod) => mod.Line), {
+  ssr: false,
+});
+// const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), { ssr: false });
+const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), {
+  ssr: false,
+});
+const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), {
   ssr: false,
 });
 const XAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), {
@@ -18,34 +37,14 @@ const XAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), {
 const YAxis = dynamic(() => import("recharts").then((mod) => mod.YAxis), {
   ssr: false,
 });
-
 const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), {
   ssr: false,
 });
+// const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), {
+//   ssr: false,
+// });
 
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((mod) => mod.ResponsiveContainer),
-  { ssr: false }
-);
-import { Legend } from "recharts";
-
-const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), {
-  ssr: false,
-});
-const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), {
-  ssr: false,
-});
-const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), {
-  ssr: false,
-});
-const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), {
-  ssr: false,
-});
-const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), {
-  ssr: false,
-});
-
-// Use env vars for Supabase keys
+// Supabase Setup
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
@@ -53,6 +52,21 @@ let supabase: SupabaseClient | null = null;
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
+
+// Chart Colors
+const CHART_COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+];
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// 2. TYPE DEFINITIONS
+// Centralized types for data models.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 type Participant = {
   id: string;
@@ -69,61 +83,207 @@ type Activity = {
   participant_id: string;
   activity_name: string;
   description?: string;
-  name?: string;
-  email?: string;
+  name?: string; // Participant name, might be joined
+  email?: string; // Participant email, might be joined
   created_at: string;
 };
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// 3. HELPER & UI COMPONENTS
+// Breaking the UI into smaller components makes the main component cleaner
+// and improves reusability.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// A simple card for displaying key stats.
+const StatCard = ({
+  title,
+  value,
+}: {
+  title: string;
+  value: number | string;
+}) => (
+  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md flex flex-col">
+    <span className="text-sm text-gray-500 dark:text-gray-400">{title}</span>
+    <span className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">
+      {value}
+    </span>
+  </div>
+);
+
+// A container for charts to standardize styling.
+const ChartCard = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+      {title}
+    </h3>
+    <div className="h-60">{children}</div>
+  </div>
+);
+
+// The header component containing title, search, and refresh controls.
+const DashboardHeader = ({
+  search,
+  onSearchChange,
+  onRefresh,
+}: {
+  search: string;
+  onSearchChange: (val: string) => void;
+  onRefresh: () => void;
+}) => (
+  <header className="mb-8">
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Event Dashboard
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Live participant and activity overview
+        </p>
+      </div>
+      <div className="flex gap-2 items-center w-full md:w-auto">
+        <input
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search name, id, or email..."
+          className="w-full md:w-64 px-3 py-2 rounded-md border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        />
+        <button
+          onClick={onRefresh}
+          className="px-4 py-2 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        >
+          Refresh
+        </button>
+      </div>
+    </div>
+  </header>
+);
+
+// The table for displaying filtered activities.
+type ActivityFilterTableProps = {
+  activities: Activity[];
+  activityTypes: string[];
+  selectedType: string | null;
+  onTypeChange: (type: string | null) => void;
+  formatTime: (iso?: string) => string;
+};
+
+const ActivityFilterTable: React.FC<ActivityFilterTableProps> = ({
+  activities,
+  activityTypes,
+  selectedType,
+  onTypeChange,
+  formatTime,
+}) => (
+  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+      <h3 className="font-semibold text-gray-900 dark:text-white">
+        Real-Time Activity Log
+      </h3>
+      <div className="flex items-center gap-2">
+        <select
+          value={selectedType || ""}
+          onChange={(e) => onTypeChange(e.target.value || null)}
+          className="px-2 py-1.5 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        >
+          <option value="">All Activities</option>
+          {activityTypes.map((type: string) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          Showing: {activities.length}
+        </span>
+      </div>
+    </div>
+    <div className="overflow-x-auto max-h-[500px]">
+      <table className="min-w-full text-left text-sm">
+        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+          <tr>
+            <th className="py-2 px-3 font-medium text-gray-600 dark:text-gray-300">
+              Participant ID
+            </th>
+            <th className="py-2 px-3 font-medium text-gray-600 dark:text-gray-300">
+              Name
+            </th>
+            <th className="py-2 px-3 font-medium text-gray-600 dark:text-gray-300">
+              Activity
+            </th>
+            <th className="py-2 px-3 font-medium text-gray-600 dark:text-gray-300">
+              Time
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          {activities.slice(0, 100).map((a: Activity) => (
+            <tr key={a.id}>
+              <td className="py-2 px-3 font-mono text-xs">
+                {a.participant_id}
+              </td>
+              <td className="py-2 px-3">{a.name || "—"}</td>
+              <td className="py-2 px-3">{a.activity_name}</td>
+              <td className="py-2 px-3 whitespace-nowrap">
+                {formatTime(a.created_at)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// 4. MAIN DASHBOARD COMPONENT
+// This is the primary component that holds state and orchestrates the UI.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 export default function AdminDashboard() {
+  // ~~~ STATE MANAGEMENT ~~~
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [teamFilter, setTeamFilter] = useState<string | null>(null);
-  const [activityFilter, setActivityFilter] = useState<string | null>(null);
-  const [showTeamsExpanded, setShowTeamsExpanded] = useState<
-    Record<string, boolean>
-  >({});
+  // const [showTeamsExpanded, setShowTeamsExpanded] = useState<Record<string, boolean>>({});
+  const [selectedActivityType, setSelectedActivityType] = useState<
+    string | null
+  >(null);
 
-  const COLORS = [
-  "#3b82f6", // blue
-  "#10b981", // green
-  "#f59e0b", // yellow
-  "#ef4444", // red
-  "#8b5cf6", // purple
-  "#ec4899", // pink
-];
-
-  // Fetch initial data from your nextjs backend endpoints
-  const fetchAll = async () => {
+  // ~~~ DATA FETCHING & REAL-TIME SUBSCRIPTIONS ~~~
+  const fetchAllData = async () => {
     setLoading(true);
     try {
-      const pRes = await fetch("/api/participants");
+      const [pRes, aRes] = await Promise.all([
+        fetch("/api/participants"),
+        fetch("/api/participants-activity"),
+      ]);
       const pJson = await pRes.json();
-      const participantsData: Participant[] = pJson.participants || [];
-
-      const aRes = await fetch("/api/participants-activity");
       const aJson = await aRes.json();
-      const activitiesData: Activity[] = aJson.activities || [];
 
-      setParticipants(participantsData);
+      setParticipants(pJson.participants || []);
       setActivities(
-        activitiesData.sort(
-          (a, b) =>
+        (aJson.activities || []).sort(
+          (a: Activity, b: Activity) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
       );
-    } catch (e) {
-      console.error("fetch error", e);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAll();
+    fetchAllData();
 
-    // real-time subscription via Supabase
     if (!supabase) return;
 
     const channel = supabase
@@ -131,28 +291,23 @@ export default function AdminDashboard() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "participant_activity" },
-        (payload) => {
-          const newRecord = payload.new as Activity;
-          setActivities((prev) => [newRecord, ...prev]);
-        }
+        (payload) => setActivities((prev) => [payload.new as Activity, ...prev])
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "participant_activity" },
-        (payload) => {
-          const updated = payload.new as Activity;
+        (payload) =>
           setActivities((prev) =>
-            prev.map((a) => (a.id === updated.id ? updated : a))
-          );
-        }
+            prev.map((a) =>
+              a.id === payload.new.id ? (payload.new as Activity) : a
+            )
+          )
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "participant_activity" },
-        (payload) => {
-          const removed = payload.old as Activity;
-          setActivities((prev) => prev.filter((a) => a.id !== removed.id));
-        }
+        (payload) =>
+          setActivities((prev) => prev.filter((a) => a.id !== payload.old.id))
       )
       .subscribe();
 
@@ -161,405 +316,221 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // Derived metrics
-  const totalParticipants = participants.length;
-  const uniqueTeams = new Set(participants.map((p) => p.team_id)).size;
+  // ~~~ MEMOIZED DATA DERIVATIONS ~~~
+  // Using `useMemo` prevents expensive recalculations on every render.
 
-  // Activity counts per participant
-  const activitiesByParticipant = useMemo(() => {
-    const map = new Map<string, Activity[]>();
-    activities.forEach((a) => {
-      const arr = map.get(a.participant_id) || [];
-      arr.push(a);
-      map.set(a.participant_id, arr);
-    });
-    return map;
-  }, [activities]);
+  // const activitiesByParticipant = useMemo(() => {
+  //   return activities.reduce((acc, activity) => {
+  //       const participantActivities = acc.get(activity.participant_id) || [];
+  //       participantActivities.push(activity);
+  //       acc.set(activity.participant_id, participantActivities);
+  //       return acc;
+  //   }, new Map<string, Activity[]>());
+  // }, [activities]);
 
-  // Last activity for participant
-  const lastActivityByParticipant = useMemo(() => {
-    const map = new Map<string, Activity | null>();
-    participants.forEach((p) => {
-      const arr = activitiesByParticipant.get(p.participant_id) || [];
-      map.set(p.participant_id, arr.length ? arr[0] : null);
-    });
-    return map;
-  }, [participants, activitiesByParticipant]);
-
-  // Counts for check-in / check-out style tracking
-  const checkInCount = activities.filter(
-    (a) =>
-      a.activity_name.toLowerCase().includes("check-in") ||
-      a.activity_name.toLowerCase().includes("checkin")
-  ).length;
-  const checkOutCount = activities.filter(
-    (a) =>
-      a.activity_name.toLowerCase().includes("check-out") ||
-      a.activity_name.toLowerCase().includes("checkout")
-  ).length;
-
-  // Top active participants
-  const participantActivityCounts = useMemo(() => {
-    const counts: { name: string; id: string; count: number }[] = [];
-    participants.forEach((p) => {
-      const count = activitiesByParticipant.get(p.participant_id)?.length || 0;
-      counts.push({ name: p.candidate_name, id: p.participant_id, count });
-    });
-    counts.sort((a, b) => b.count - a.count);
-    return counts.slice(0, 10);
-  }, [participants, activitiesByParticipant]);
-
-  // Activity type counts
   const activityTypeCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    activities.forEach((a) =>
-      map.set(a.activity_name, (map.get(a.activity_name) || 0) + 1)
-    );
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+    const counts = activities.reduce((acc, a) => {
+      acc.set(a.activity_name, (acc.get(a.activity_name) || 0) + 1);
+      return acc;
+    }, new Map<string, number>());
+    return Array.from(counts.entries()).map(([name, value]) => ({
+      name,
+      value,
+    }));
   }, [activities]);
 
-  // Activity over time (group by day)
   const activityOverTime = useMemo(() => {
-    const map = new Map<string, number>();
-    activities.forEach((a) => {
+    const counts = activities.reduce((acc, a) => {
       const day = new Date(a.created_at).toISOString().slice(0, 10);
-      map.set(day, (map.get(day) || 0) + 1);
-    });
-    return Array.from(map.entries())
+      acc.set(day, (acc.get(day) || 0) + 1);
+      return acc;
+    }, new Map<string, number>());
+    return Array.from(counts.entries())
       .map(([day, count]) => ({ day, count }))
       .sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime());
   }, [activities]);
 
-  // Filtering & searching
-  const filteredParticipants = participants.filter((p) => {
-    const q = search.toLowerCase();
-    if (q) {
-      const match =
-        p.candidate_name.toLowerCase().includes(q) ||
-        p.participant_id.toLowerCase().includes(q) ||
-        p.candidate_email.toLowerCase().includes(q);
-      if (!match) return false;
-    }
-    if (teamFilter && p.team_id !== teamFilter) return false;
-    return true;
-  });
+  // const checkInCount = useMemo(() => activities.filter(a => a.activity_name.toLowerCase().includes('checkin') || a.activity_name.toLowerCase().includes('check-in')).length, [activities]);
+  // const checkOutCount = useMemo(() => activities.filter(a => a.activity_name.toLowerCase().includes('checkout') || a.activity_name.toLowerCase().includes('check-out')).length, [activities]);
+  // const breakfastCount = useMemo(() => activities.filter(a => a.activity_name.toLowerCase().includes('breakfast')).length, [activities]);
+  // const lunchCount = useMemo(() => activities.filter(a => a.activity_name.toLowerCase().includes('lunch')).length, [activities]);
+  // const dinnerCount = useMemo(() => activities.filter(a => a.activity_name.toLowerCase().includes('dinner')).length, [activities]);
+  const allActivityCounts = useMemo(() => {
+    // Use .reduce() to transform the activities array into an object of counts.
+    // e.g., { 'Check-in': 50, 'Lunch': 45, ... }
+    const counts = activities.reduce((acc, activity) => {
+      const name = activity.activity_name;
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-  const teams = useMemo(() => {
-    const map = new Map<string, Participant[]>();
-    participants.forEach((p) => {
-      const arr = map.get(p.team_id) || [];
-      arr.push(p);
-      map.set(p.team_id, arr);
-    });
-    return Array.from(map.entries()).map(([team_id, members]) => ({
-      team_id,
-      team_name: members[0]?.team_name || "",
-      members,
-    }));
-  }, [participants]);
+    // Convert the object into an array for easy mapping in JSX.
+    // e.g., [ { name: 'Check-in', value: 50 }, { name: 'Lunch', value: 45 }, ... ]
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [activities]);
 
-  // helper: format time
-  const fmt = (iso?: string) => {
-    if (!iso) return "-";
-    const d = new Date(iso);
-    return d.toLocaleString("en-IN", {
+  const filteredActivityData = useMemo(() => {
+    return activities.filter(
+      (a) => !selectedActivityType || a.activity_name === selectedActivityType
+    );
+  }, [activities, selectedActivityType]);
+
+  const activityTypesList = useMemo(
+    () => Array.from(new Set(activities.map((a) => a.activity_name))),
+    [activities]
+  );
+
+  // ~~~ HELPER FUNCTIONS ~~~
+  const formatDateTime = (iso?: string) => {
+    if (!iso) return "–";
+    return new Date(iso).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
       timeZone: "Asia/Kolkata",
     });
   };
 
-  if(loading){
+  // ~~~ RENDER LOGIC ~~~
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-lg text-gray-600 dark:text-gray-400">
+          Loading Dashboard...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f1a] text-slate-900 dark:text-slate-100 p-4 md:p-8">
-      <header className="max-w-7xl mx-auto mb-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold">
-              Event Admin Dashboard
-            </h1>
-            <p className="text-sm opacity-80 mt-1">
-              Live participant & activity overview
-            </p>
-          </div>
-          <div className="flex gap-2 items-center">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name / id / email"
-              className="px-3 py-2 rounded-md border bg-white dark:bg-[#111827] border-slate-200 dark:border-[#1f2937] shadow-sm"
-            />
-            <button
-              onClick={fetchAll}
-              className="px-3 py-2 rounded-md bg-indigo-600 text-white"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-screen-2xl mx-auto">
+        <DashboardHeader
+          search={search}
+          onSearchChange={setSearch}
+          onRefresh={fetchAllData}
+        />
 
-      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column: Stats + charts */}
-        <section className="col-span-1 lg:col-span-2 space-y-6">
-          {/* Stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="Total Participants" value={totalParticipants} />
-            <StatCard title="Unique Teams" value={uniqueTeams} />
-            <StatCard title="Check-ins" value={checkInCount} />
-            <StatCard title="Check-outs" value={checkOutCount} />
-          </div>
+        <main className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Main Content Column */}
+          <section className="xl:col-span-2 flex flex-col gap-6">
+            {/* Stat Cards */}
+            {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard title="Total Participants" value={participants.length} />
+              <StatCard title="Unique Teams" value={new Set(participants.map(p => p.team_id)).size} />
+              <StatCard title="Total Check-ins" value={checkInCount} />
+              <StatCard title="Total Check-outs" value={checkOutCount} />
+              <StatCard title="Total Activities" value={activities.length} />
+              <StatCard title="Total Breakfasts" value={breakfastCount} />
+              <StatCard title="Total Lunches" value={lunchCount} />
+              <StatCard title="Total Dinners" value={dinnerCount} />
+            </div> */}
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+              {/* Static cards that are calculated differently */}
+              <StatCard
+                title="Total Participants"
+                value={participants.length}
+              />
+              <StatCard
+                title="Unique Teams"
+                value={new Set(participants.map((p) => p.team_id)).size}
+              />
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="col-span-2 bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm">
-              <h3 className="font-medium mb-2">Activity Over Time</h3>
-              <div style={{ height: 220 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={activityOverTime}>
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke="#6366F1"
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {/* Dynamically generate a stat card for every unique activity found in the data */}
+              {allActivityCounts.map(({ name, value }) => (
+                <StatCard
+                  key={name}
+                  title={name}
+                  value={`${value} / ${participants.length}`}
+                />
+              ))}
             </div>
 
-            <div className="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm">
-              <h3 className="font-medium mb-2">Top Activities</h3>
-              <div style={{ height: 220 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activityTypeCounts}>
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* Live Feed */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm">
-            <h3 className="font-medium mb-2">Live Activity Feed</h3>
-            {loading ? (
-              <p className="text-sm opacity-70">Loading...</p>
-            ) : (
-              <div className="max-h-64 overflow-auto divide-y">
-                {activities
-                  .filter(
-                    (a) => !activityFilter || a.activity_name === activityFilter
-                  )
-                  .slice(0, 200)
-                  .map((a) => (
-                    <div
-                      key={a.id}
-                      className="p-3 flex justify-between items-start"
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              <div className="lg:col-span-3">
+                <ChartCard title="Activity Over Time">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={activityOverTime}
+                      margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
                     >
-                      <div>
-                        <div className="font-medium">
-                          {a.name || a.participant_id}{" "}
-                          <span className="text-xs opacity-70">
-                            ({a.participant_id})
-                          </span>
-                        </div>
-                        <div className="text-sm opacity-80">
-                          {a.activity_name} — {a.description || ""}
-                        </div>
-                        <div className="text-xs opacity-60">
-                          {fmt(a.created_at)}
-                        </div>
-                      </div>
-                      <div className="text-xs opacity-60">
-                        {new Date(a.created_at).toLocaleTimeString("en-IN", {
-                          timeZone: "Asia/Kolkata",
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                      <XAxis
+                        dataKey="day"
+                        stroke="currentColor"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        stroke="currentColor"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "black",
+                          border: "none",
+                          color: "white",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartCard>
               </div>
-            )}
-          </div>
-
-          {/* Participant Table */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm h-64 overflow-scroll">
-            <h3 className="font-medium mb-2">Participants</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
-                <thead className="text-sm text-slate-600 dark:text-slate-300">
-                  <tr>
-                    <th className="py-2 px-3">Participant ID</th>
-                    <th className="py-2 px-3">Name</th>
-                    <th className="py-2 px-3">Role</th>
-                    <th className="py-2 px-3">Team</th>
-                    <th className="py-2 px-3">Last Activity</th>
-                    <th className="py-2 px-3">Last Seen</th>
-                    <th className="py-2 px-3">Activity Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredParticipants.map((p) => {
-                    const last = lastActivityByParticipant.get(
-                      p.participant_id
-                    );
-                    const count =
-                      activitiesByParticipant.get(p.participant_id)?.length ||
-                      0;
-                    return (
-                      <tr key={p.id} className="border-t">
-                        <td className="py-2 px-3">{p.participant_id}</td>
-                        <td className="py-2 px-3">{p.candidate_name}</td>
-                        <td className="py-2 px-3">{p.candidate_role}</td>
-                        <td className="py-2 px-3">
-                          {p.team_name || p.team_id}
-                        </td>
-                        <td className="py-2 px-3">
-                          {last?.activity_name || "—"}
-                        </td>
-                        <td className="py-2 px-3">
-                          {last ? fmt(last.created_at) : "—"}
-                        </td>
-                        <td className="py-2 px-3">{count}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="lg:col-span-2">
+                <ChartCard title="Activity Types">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={activityTypeCounts}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label
+                      >
+                        {activityTypeCounts.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      {/* <Legend iconSize={10} /> */}
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              </div>
             </div>
-          </div>
-        </section>
 
-        {/* Right column: Teams & Top participants */}
-        <aside className="col-span-1 space-y-6">
-          <div className="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm">
-            <h3 className="font-medium mb-2">Top Active Participants</h3>
-            <ol className="list-decimal pl-5 space-y-2 text-sm">
-              {participantActivityCounts.map((p) => (
-                <li key={p.id} className="flex justify-between">
-                  <span>{p.name}</span>
-                  <span className="opacity-80">{p.count}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          <div className="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm">
-            <h3 className="font-medium mb-2">Teams</h3>
-            <div className="space-y-2 max-h-96 overflow-auto">
-              {teams.map((t) => (
-                <div
-                  key={t.team_id}
-                  className="border rounded-md overflow-hidden"
-                >
-                  <button
-                    className="w-full text-left px-3 py-2 flex justify-between items-center bg-slate-50 dark:bg-[#0b1118]"
-                    onClick={() =>
-                      setShowTeamsExpanded((s) => ({
-                        ...s,
-                        [t.team_id]: !s[t.team_id],
-                      }))
-                    }
-                  >
-                    <div>
-                      <div className="text-sm font-medium">
-                        {t.team_name || t.team_id}
-                      </div>
-                      <div className="text-xs opacity-70">
-                        {t.members.length} members
-                      </div>
-                    </div>
-                    <div className="text-xs opacity-70">
-                      {showTeamsExpanded[t.team_id] ? "−" : "+"}
-                    </div>
-                  </button>
-                  {showTeamsExpanded[t.team_id] && (
-                    <div className="p-3">
-                      {t.members.map((m) => {
-                        const last = lastActivityByParticipant.get(
-                          m.participant_id
-                        );
-                        return (
-                          <div
-                            key={m.id}
-                            className="flex items-center justify-between py-2 border-b last:border-b-0"
-                          >
-                            <div>
-                              <div className="text-sm">{m.candidate_name}</div>
-                              <div className="text-xs opacity-70">
-                                {m.participant_id} • {m.candidate_role}
-                              </div>
-                            </div>
-                            <div className="text-xs opacity-70">
-                              {last
-                                ? `${last.activity_name} • ${new Date(
-                                    last.created_at
-                                  ).toLocaleTimeString("en-IN", {
-                                    timeZone: "Asia/Kolkata",
-                                  })}`
-                                : "—"}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#111827] rounded-xl p-4 shadow-sm">
-  <h3 className="font-medium mb-2">Activity Types</h3>
-  <div style={{ height: 220 }}>
-   
-    <ResponsiveContainer width="100%" height="100%">
-      
-      <PieChart>
-        <Pie
-          data={activityTypeCounts}
-          dataKey="value"
-          nameKey="name"
-          outerRadius={70}
-          label
-        >
-          {activityTypeCounts.map((entry, index) => (
-
-            <Cell
-              key={`cell-${index}`}
-              fill={COLORS[index % COLORS.length]}
+            {/* Real-time Activity Table */}
+            <ActivityFilterTable
+              activities={filteredActivityData}
+              activityTypes={activityTypesList}
+              selectedType={selectedActivityType}
+              onTypeChange={setSelectedActivityType}
+              formatTime={formatDateTime}
             />
-          ))}
-        </Pie>
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
-</div>
+          </section>
 
-        </aside>
-      </main>
-    </div>
-  );
-}
-
-function StatCard({ title, value }: { title: string; value: number | string }) {
-  return (
-    <div className="bg-white dark:bg-[#111827] p-4 rounded-xl shadow-sm flex flex-col">
-      <span className="text-xs opacity-70">{title}</span>
-      <span className="text-2xl font-semibold mt-2">{value}</span>
+          {/* Sidebar Column */}
+          <aside className="col-span-1 flex flex-col gap-6">
+            {/* Top Active Participants */}
+            {/* Implement Sidebar Components here if needed */}
+          </aside>
+        </main>
+      </div>
     </div>
   );
 }
