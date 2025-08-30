@@ -224,13 +224,13 @@ export default function RealtimeLogsPage() {
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {logs.filter(log => log.is_inside).length}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Currently Inside</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Total Inside Logs</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                 {logs.filter(log => !log.is_inside).length}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Currently Outside</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Total Outside Logs</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
