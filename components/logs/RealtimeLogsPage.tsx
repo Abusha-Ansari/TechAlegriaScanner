@@ -193,12 +193,6 @@ export default function RealtimeLogsPage() {
                 </span>
               </div>
               <button
-                onClick={() => router.push('/scanner')}
-                className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition-colors"
-              >
-                QR Scanner
-              </button>
-              <button
                 onClick={fetchLogs}
                 className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors"
               >

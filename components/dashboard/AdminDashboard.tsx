@@ -9,6 +9,7 @@ import { ChartCard } from "../ui/ChartCard";
 import { ActivityOverTimeChart } from "../charts/ActivityOverTimeChart";
 import { ActivityTypesChart } from "../charts/ActivityTypesChart";
 import { ActivityFilterTable } from "./ActivityFilterTable";
+import NavigationSidebar from "./NavigationSidebar";
 
 // Supabase Setup
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -198,8 +199,8 @@ export default function AdminDashboard() {
 
           {/* Sidebar Column */}
           <aside className="col-span-1 flex flex-col gap-6">
-            {/* Top Active Participants */}
-            {/* Implement Sidebar Components here if needed */}
+            {/* Navigation Sidebar */}
+            <NavigationSidebar />
           </aside>
         </main>
       </div>

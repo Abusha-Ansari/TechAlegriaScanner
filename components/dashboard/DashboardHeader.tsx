@@ -35,30 +35,6 @@ export const DashboardHeader = ({
           className="w-full md:w-64 px-3 py-2 rounded-md border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
         <button
-          onClick={() => router.push('/scanner')}
-          className="px-4 py-2 rounded-md bg-purple-600 text-white font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 whitespace-nowrap"
-        >
-          QR Scanner
-        </button>
-        <button
-          onClick={() => router.push('/activity-logs')}
-          className="px-4 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 whitespace-nowrap"
-        >
-          Activity Logs
-        </button>
-        <button
-          onClick={() => router.push('/entry-exit-logs')}
-          className="px-4 py-2 rounded-md bg-orange-600 text-white font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 whitespace-nowrap"
-        >
-          Entry/Exit Logs
-        </button>
-        <button
-          onClick={() => router.push('/participants-outside')}
-          className="px-4 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 whitespace-nowrap"
-        >
-          Outside
-        </button>
-        <button
           onClick={onRefresh}
           className="px-4 py-2 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
         >
